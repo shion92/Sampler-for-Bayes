@@ -1,0 +1,161 @@
+---
+title: "STAT443 Assignment 5 Qing Ruan 4043939"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,error=T)
+```
+
+
+## Question 1: Slice sampler
+Use R to code a slice sampler that samples values from the density $f(y)\propto \exp(-\sqrt{y})$ for $y>0$. Construct a plot that illustrates the density and add points corresponding to the values chosen numerically (i.e., using integrate() and compare these values with simulated ones.) 
+
+```{r,fig.width=0.9}
+curve(exp(-x^(0.5)),from=0,to=100,ylab="Density")
+
+slice<-function(x0,n){
+  xx<-x0
+  u<-runif(1,0,exp(-x0^(0.5)))
+  yy<-u
+  
+  for (i in 1:(n-1)){
+  x0<-runif(1,0,(-log(u))^2)
+  xx<-c(xx,x0)
+  u<-runif(1,0,exp(-x0^(0.5)))
+  yy<-c(yy,u)
+  }
+  return(data.frame(xx=xx,yy=yy))
+}
+
+dat<-slice(x0=1,100000)
+points(dat$xx,dat$yy,pch=16,cex=0.6)
+
+exp(-2.17^(0.5))
+
+```
+
+
+
+
+## Question 2: Your own Metropolis
+Suppose that $y_1,...,y_k$ are independent samples from $k$ binomial distribution each indexed by $n_i$ and with the logit of the probabilities $\pi_i$ given by
+
+$$
+\ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i
+$$
+Construct and test a Metropolis within Gibbs algorithm for sampling from the posterior distribution $[\beta_0,\beta_1|\{y_i\},\{x_i\}]$.Note that by ``Metropolis within Gibbs'' we mean that (some) samples are drawn from their full-conditional distribution using the Metropoli-Hasting algorithm. ##This approach is useful when the full conditional distribution are not in a form that corresponds to known distributions.For priors on the parameters use $[\beta_i]=N(\mu_i,\tau_i)$ (mean and precision, i=0,1) and appropriate values of $\mu_i$ and $\tau_i$.
+```{r}
+
+```
+
+
+                          
+## Question 3: Ouch! Logistic pain.
+
+# 1. The binomail modal for the probability of a reaction $\pi_i$ is 
+
+$$
+\ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i=-6.469+5.567x_i
+$$
+                          
+standard error for $\beta_0$ and $\beta_1$ are 2.418, 2.044 respectively. The 95\% confident intervel for $\beta_0$ is $[1.728560,11.208790]$ and $[-9.572126 ,-1.561398]$ for $\beta_1$
+                          
+
+```{r}
+library(DAAG)
+z <- table(anesthetic$move, anesthetic$conc)
+
+# This data frame contains the following columns:
+
+# move is a binary numeric vector coded for whether the patient reacted 
+# (0 = no reacting, 1 = reacting)
+
+# conc is anesthetic concentration
+
+# plot
+conc <- as.numeric(dimnames(z)[[2]])
+plot(conc, prop, xlab = "Concentration", ylab = "Proportion", xlim = c(.5,2.5),
+ylim = c(0, 1), pch = 16)
+chw <- par()$cxy[1]
+text(conc - 0.75 * chw, prop, paste(tot), adj = 1)
+abline(h = oprop, lty = 2)
+
+
+anes.logit <- glm(cbind(move,nomove) ~ conc, family = binomial(link = logit),
+data = anesthetic)
+
+summary(anes.logit)
+
+
+# CI
+# same as anes.logit$coeff+c(-1,1)*qnorm(0.975)*se
+confint.default(anes.logit)                              
+
+```
+
+
+
+
+## Question 4: Meta-analysis
+
+
+## Question 5: Trout data
+For the West Coast trout data set (file wctrout_mis.txt), some of the covariates are missing. Use JAGS to fit the model:
+
+$$
+\text{logit}(p_i)=\beta_0+\beta_1S_i+\beta_2L_i+\beta_3S_iL_i
+$$
+where $S_i$ is the indicator for the sex of the fish (0=male,1=female) and $L_i$ is its standardised length. Also predict the missing sex for fish 1 and the missing length for fish 2. Note that the lengths have been standardised already and that there are 1961 fish in the file. \textbf{Hint} you will need to model both length and sex, something not normally required for predictors in a regression analysis.
+
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(R2jags)
+source("fishertick.r")
+```
+
+```{r}
+head(tick)
+mean(tick)
+
+# model
+tickmodel<-function(){
+  # data model 
+  for (i in 1:length(tick)){
+    tick[i]~dpois(lambda)
+  }
+  # prior 
+  lambda~dgamma(0.001,0.001)
+}
+
+# initial values 
+inits=function(){
+  list('lambda'=rgamma(1,1,1))
+}
+
+params=c('lambda')
+
+# output
+jagsfit1=jags(data=list(tick=tick),inits=inits,
+              params,n.iter=100000,model.file=tickmodel)
+(summ=jagsfit1$BUGSoutput$summary)
+
+
+jags.mcmc1=as.mcmc(jagsfit1)
+
+# diagnostic plot
+par(mfrow=c(1,2))
+traceplot(jags.mcmc1,col=topo.colors(3),lty=1,lwd=2)
+gelman.diag(jags.mcmc1)
+```
+
+The traceplot and the BGR diagnostic indicates that the MCMC converges (iteration=5000). With a gamma prior with $\alpha_0=0.001$ and $\beta_1=0.001$, a 95% credible interval from the posterior distribution for $\lambda$ is in the range (approximate) [6.01,7.12] with expected value about 6.56.
+
+
+## Question 6: Posterior model probabilities
+Link and Barker (2010) give an example where two models are considered for the following binomial data: $y=(8,16)'$ and $n=(20,30)'$. The two models are:
+
+
