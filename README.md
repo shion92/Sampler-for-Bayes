@@ -1,1 +1,3 @@
-# Sampler-for-BayesA line I wrote on my local computer
+# Sampler-for-Bayes
+
+A line I wrote on my local computer
