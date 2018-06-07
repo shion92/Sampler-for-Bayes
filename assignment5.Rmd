@@ -10,11 +10,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE,error=T) 
 ```
 
-
+ 
 ## Question 1: Slice sampler
 Use R to code a slice sampler that samples values from the density $f(y)\propto \exp(-\sqrt{y})$ for $y>0$. Construct a plot that illustrates the density and add points corresponding to the values chosen numerically (i.e., using integrate() and compare these values with simulated ones.) 
 
-```{r,fig.width=0.9}
+```{r,fig.width=0.9,eval=FALSE}
 curve(exp(-x^(0.5)),from=0,to=100,ylab="Density")
 
 slice<-function(x0,n){
@@ -56,46 +56,125 @@ Construct and test a Metropolis within Gibbs algorithm for sampling from the pos
                           
 ## Question 3: Ouch! Logistic pain.
 
-# 1. The binomail modal for the probability of a reaction $\pi_i$ is 
+### 1. Fit a simple logistic regression model using standard methods and report the estimates, standard error and 95\% confidence interval for the parameters.
+
+The binomail modal for the probability of a reaction $\pi_i$ is 
 
 $$
-\ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i=-6.469+5.567x_i
+\ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i=6.469-5.567x_i
 $$
                           
-standard error for $\beta_0$ and $\beta_1$ are 2.418, 2.044 respectively. The 95\% confident intervel for $\beta_0$ is $[1.728560,11.208790]$ and $[-9.572126 ,-1.561398]$ for $\beta_1$
-                          
+standard error for $\beta_0$ and $\beta_1$ are 2.418, 2.044 respectively. The 95\% confident intervel for $\beta_0$ is $[1.728560,11.208790]$ and $[-9.572126 ,-1.561398]$ for $\beta_1$.
+
+### 2 Report an estimate (and 95\% confidence interval) for the anesthetic concentration at which 90\% of patients show no reaction.
+
+Given $\pi^*=1-0.9=0.1$, the estimate of the anesthetic concentration will be 
+
+$$
+\ln\left(\frac{0.1}{0.9}\right)=\hat{\beta_0}+\hat{\beta_1}\hat{x}=6.469-5.567\hat{x}\\
+\Rightarrow \hat{x}= \frac{\left(\ln\left(\frac{0.1}{0.9}\right)-\hat{\beta_0} \right)}{\hat{\beta_1}}=1.556714
+$$
+
+By the properties of MLEs, we know asymptotically, $\mathbf{\beta}=\begin{pmatrix}\hat{\beta_0}\\\hat{\beta_1}\end{pmatrix}$ is normallly distributed with variance-covariance matrix 
+
+$$
+V(\hat{\beta})=\begin{pmatrix}
+5.848999 &-4.848174\\
+-4.848174 & 4.176262
+\end{pmatrix}
+$$
+
+Using the Multivariate Delta method, we have 
+$$
+\frac{\hat{x}-g(\hat{\beta})}{Var(g(\hat{\beta}))}\sim N(0,1))
+$$
+
+where $Var(g(\hat{\beta}))=g'V(\hat{\beta})g$ 
+
+$$
+\hat{x}'=g'(\beta)=\begin{pmatrix}
+\frac{\partial g(\beta)}{\partial \beta_0}\\
+\frac{\partial g(\beta)}{\partial \beta_1}
+\end{pmatrix}
+=\begin{pmatrix}
+-\frac{1}{\beta_1}\\
+-\frac{\ln(0.1/0.9)-\beta_0}{\beta_1^2}
+\end{pmatrix}
+=\begin{pmatrix}
+-\frac{1}{\hat{\beta}_1}\\
+\frac{\hat{\beta}_0-\ln(0.1/0.9)}{\hat{\beta}_1^2}
+\end{pmatrix}
+=\begin{pmatrix}
+0.1796377\\ 0.2796458
+\end{pmatrix}
+$$
+
+$$Var(g(\hat{\beta}))=g'V(\hat{\beta})g==\begin{pmatrix}
+0.1796377\\ 0.2796458
+\end{pmatrix}'\begin{pmatrix}
+5.848999 &-4.848174\\
+-4.848174 & 4.176262
+\end{pmatrix}=\begin{pmatrix}
+0.1796377\\ 0.2796458
+\end{pmatrix}=0.02824131
+$$ 
+Therefore the 95\% confidence interval of $\hat{x}=1.556714$ is $[1.227347,1.886097]$.
 
 ```{r}
-library(DAAG)
-z <- table(anesthetic$move, anesthetic$conc)
-
-# This data frame contains the following columns:
+# This dataset contains the following columns:
 
 # move is a binary numeric vector coded for whether the patient reacted 
 # (0 = no reacting, 1 = reacting)
 
 # conc is anesthetic concentration
+library(DAAG)
+(z <- table(anesthetic$move, anesthetic$conc))
 
-# plot
+tot <- apply(z,2,sum)
+prop <- z[2,]/tot
 conc <- as.numeric(dimnames(z)[[2]])
-plot(conc, prop, xlab = "Concentration", ylab = "Proportion", xlim = c(.5,2.5),
-ylim = c(0, 1), pch = 16)
+# plot
+plot(conc, prop, xlab = "Concentration", ylab = "Proportion",
+     xlim = c(.5,2.5), ylim = c(0, 1), pch = 16)
 chw <- par()$cxy[1]
 text(conc - 0.75 * chw, prop, paste(tot), adj = 1)
 abline(h = oprop, lty = 2)
 
-
+# GLM logistic model
 anes.logit <- glm(cbind(move,nomove) ~ conc, family = binomial(link = logit),
 data = anesthetic)
 
 summary(anes.logit)
 
-
-# CI
+# CI for beta_0 & beta_1
 # same as anes.logit$coeff+c(-1,1)*qnorm(0.975)*se
-confint.default(anes.logit)                              
+# confint() gives profile confidence interval instead
+confint.default(anes.logit)       
+
+
+# the estimate of concentration
+(beta<-as.numeric(anes.logit$coeff))
+
+xhat<-(log(0.1/0.9)-beta[1])/beta[2]
+
+# var-cov matrix
+(V=vcov(anes.logit))
+
+(g <- c(-1/beta[2],(beta[1]-log(0.1/0.9))/(beta[2]^2)))
+(tau2 <- t(g)%*%V%*%g)
+
+# CI for concentration
+xhat+c(-1,1)*qnorm(0.975)*sqrt(tau2)
+```
+
+### 3. Either using BUGS/JAGS or computer code based on the algorithm outlined in Question 2 repeat the analysis carried out in part 1) and 2) using vague prior distirubtion for the parameter. 
+
+```{r}
+
+
 
 ```
+
 
 
 
@@ -112,12 +191,13 @@ $$
 where $S_i$ is the indicator for the sex of the fish (0=male,1=female) and $L_i$ is its standardised length. Also predict the missing sex for fish 1 and the missing length for fish 2. Note that the lengths have been standardised already and that there are 1961 fish in the file. \textbf{Hint} you will need to model both length and sex, something not normally required for predictors in a regression analysis.
 
 
-```{r,warning=FALSE,echo=FALSE,message=FALSE}
+```{r,warning=FALSE,echo=FALSE,message=FALSE,eval=FALSE}
 library(R2jags)
-source("fishertick.r")
+
 ```
 
-```{r}
+
+```{r,eval=FALSE}
 head(tick)
 mean(tick)
 
