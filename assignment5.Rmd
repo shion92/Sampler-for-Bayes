@@ -1,5 +1,6 @@
 ---
-title: "STAT443 Assignment 5 Qing Ruan 4043939"
+title: "STAT443 Assignment 5"
+author: "Qing Ruan 4043939"
 output:
   pdf_document: default
   html_document:
@@ -47,10 +48,8 @@ Suppose that $y_1,...,y_k$ are independent samples from $k$ binomial distributio
 $$
 \ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i
 $$
-Construct and test a Metropolis within Gibbs algorithm for sampling from the posterior distribution $[\beta_0,\beta_1|\{y_i\},\{x_i\}]$.Note that by ``Metropolis within Gibbs'' we mean that (some) samples are drawn from their full-conditional distribution using the Metropoli-Hasting algorithm. ##This approach is useful when the full conditional distribution are not in a form that corresponds to known distributions.For priors on the parameters use $[\beta_i]=N(\mu_i,\tau_i)$ (mean and precision, i=0,1) and appropriate values of $\mu_i$ and $\tau_i$.
-```{r}
 
-```
+Construct and test a Metropolis within Gibbs algorithm for sampling from the posterior distribution $[\beta_0,\beta_1|\{y_i\},\{x_i\}]$.Note that by ``Metropolis within Gibbs'' we mean that (some) samples are drawn from their full-conditional distribution using the Metropoli-Hasting algorithm. This approach is useful when the full conditional distribution are not in a form that corresponds to known distributions. For priors on the parameters use $[\beta_i]=N(\mu_i,\tau_i)$ (mean and precision, i=0,1) and appropriate values of $\mu_i$ and $\tau_i$.
 
 
                           
@@ -58,15 +57,18 @@ Construct and test a Metropolis within Gibbs algorithm for sampling from the pos
 
 ### 1. Fit a simple logistic regression model using standard methods and report the estimates, standard error and 95\% confidence interval for the parameters.
 
-The binomail modal for the probability of a reaction $\pi_i$ is 
+The binomail modal for the probability of reacting $\pi_i$ is 
 
 $$
 \ln\left(\frac{\pi_i}{1-\pi_i}\right)=\beta_0+\beta_1x_i=6.469-5.567x_i
 $$
                           
-standard error for $\beta_0$ and $\beta_1$ are 2.418, 2.044 respectively. The 95\% confident intervel for $\beta_0$ is $[1.728560,11.208790]$ and $[-9.572126 ,-1.561398]$ for $\beta_1$.
+standard error for $\beta_0$ and $\beta_1$ are 2.418, 2.044 respectively. 
 
-### 2 Report an estimate (and 95\% confidence interval) for the anesthetic concentration at which 90\% of patients show no reaction.
+The 95\% confident intervel for $\beta_0$ and $\beta_1$ are $[1.728560,11.208790]$ and $[-9.572126 ,-1.561398]$.
+
+
+### 2. Report an estimate (and 95\% confidence interval) for the anesthetic concentration at which 90\% of patients show no reaction.
 
 Given $\pi^*=1-0.9=0.1$, the estimate of the anesthetic concentration will be 
 
@@ -109,18 +111,23 @@ $$
 \end{pmatrix}
 $$
 
-$$Var(g(\hat{\beta}))=g'V(\hat{\beta})g==\begin{pmatrix}
+$$Var(g(\hat{\beta}))=g'V(\hat{\beta})
+=\begin{pmatrix}
 0.1796377\\ 0.2796458
 \end{pmatrix}'\begin{pmatrix}
 5.848999 &-4.848174\\
 -4.848174 & 4.176262
-\end{pmatrix}=\begin{pmatrix}
+\end{pmatrix}
+=\begin{pmatrix}
 0.1796377\\ 0.2796458
 \end{pmatrix}=0.02824131
 $$ 
-Therefore the 95\% confidence interval of $\hat{x}=1.556714$ is $[1.227347,1.886097]$.
 
-```{r}
+Therefore the 95\% confidence interval of $\hat{x}=1.556714$ is $[1.227347,1.886097]$.  
+
+
+
+```{r,warning=FALSE,fig.height=3,fig.width=5}
 # This dataset contains the following columns:
 
 # move is a binary numeric vector coded for whether the patient reacted 
@@ -128,11 +135,13 @@ Therefore the 95\% confidence interval of $\hat{x}=1.556714$ is $[1.227347,1.886
 
 # conc is anesthetic concentration
 library(DAAG)
+library(knitr)
 (z <- table(anesthetic$move, anesthetic$conc))
 
-tot <- apply(z,2,sum)
+tot <- as.numeric(apply(z,2,sum))
 prop <- z[2,]/tot
 conc <- as.numeric(dimnames(z)[[2]])
+
 # plot
 plot(conc, prop, xlab = "Concentration", ylab = "Proportion",
      xlim = c(.5,2.5), ylim = c(0, 1), pch = 16)
@@ -149,13 +158,14 @@ summary(anes.logit)
 # CI for beta_0 & beta_1
 # same as anes.logit$coeff+c(-1,1)*qnorm(0.975)*se
 # confint() gives profile confidence interval instead
+confint(anes.logit)
 confint.default(anes.logit)       
 
-
-# the estimate of concentration
 (beta<-as.numeric(anes.logit$coeff))
 
-xhat<-(log(0.1/0.9)-beta[1])/beta[2]
+
+# MLE estimate of conc.new
+(conc.new<-(log(0.1/0.9)-beta[1])/beta[2])
 
 # var-cov matrix
 (V=vcov(anes.logit))
@@ -163,23 +173,224 @@ xhat<-(log(0.1/0.9)-beta[1])/beta[2]
 (g <- c(-1/beta[2],(beta[1]-log(0.1/0.9))/(beta[2]^2)))
 (tau2 <- t(g)%*%V%*%g)
 
-# CI for concentration
-xhat+c(-1,1)*qnorm(0.975)*sqrt(tau2)
+# MLE CI for concentration
+conc.new+c(-1,1)*qnorm(0.975)*sqrt(tau2)
 ```
 
 ### 3. Either using BUGS/JAGS or computer code based on the algorithm outlined in Question 2 repeat the analysis carried out in part 1) and 2) using vague prior distirubtion for the parameter. 
 
+Let $y_i$ be the number of patients reacting, $x_i$ be anesthetic concentration, the model we use 
+
+$$y_i\sim\text{Bin}(\text{tot}_i,\pi_i)$$
+$$\text{logit}(\pi_i)=\beta_0+\beta_1\text{conc}_i \sim N(0,1e+12)$$
+
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(R2jags)
+
+# model
+anesthetic.model = function(){
+  # data model 
+    for (i in 1:6){
+        y[i] ~ dbin(p[i],n[i])
+        logit(p[i]) <- beta[1] + beta[2]*conc[i]
+    }
+  # prior 
+    for (i in 1:2){beta[i]~dnorm(0,1e-6)}
+  # predict
+    conc.new <- (logit(0.1)-beta[1])/beta[2]
+}
+  
+
+# initial values 
+inits=function(){
+  list('beta'=rnorm(2,0,1))}
+
+params=c('beta','conc.new')
+
+y = as.numeric(z[2,])
+n = tot
+conc = conc 
+
+data = c('y','n','conc')
+
+# output
+jagsfit1=jags(data=data,inits=inits,params,n.iter=100000,
+              model.file=anesthetic.model)
+print(jagsfit1)
+
+jags.mcmc1=as.mcmc(jagsfit1)
+
+# diagnostic plot
+par(mfrow=c(2,2))
+traceplot(jags.mcmc1,col=topo.colors(3),lty=1,lwd=2)
+gelman.diag(jags.mcmc1)
+
+
+coda1=jagsfit1$BUGSoutput$sims.matrix
+plot(density(coda1[,3],from=0,to=5),main = "Distribution of conc.new")
+```
+
+The estimate of the anesthetic concentration at wich 90\% of patients show no action is 1.52. And the credible interval is given by $[1.31,2.09]$.
+
+
+### 4. Commment on likely reasons for differences betwwen Bayesian and MLE estimates.
+
+* MLEs and Bayesian had similar estimates for **conc.new** since we assume a vague prior for the Bayesian model. (MLE gave the mean. Bayesian gave both mean and median but the distribution of **conc.new** is skewed so we tend to use the median value.). 
+
+* The MLE confidence interval estimators are developed based on the asymptotic property of **conc.new** being normally distributed, while Bayesian estimation treats **conc.new** itself as a random variable that does not rely on the same assumpation. The density function shows  **conc.new** is not normally distributed. Therefore, Bayesian and MLE resulted in different estimates for the 95\% interval for **conc.new**.
+
+
+## Question 4: Meta-analysis
+
+In a meta-analysis, results from a number of studies are summarised using a statistical model.
+The datset 'Beta blockers' provides data from 22 clinical trials that were carried out to assess the effectiveness of beta-blockers administered to heart attack patients.
+
+Use JAGS to carry out an analysis of these data that summarises the effect of the beta-blocker on the survival prospects of heart attack patients. Write up your analysis in a way that could be understood by the researchers carrying out the 22 studies.
+
+Let $y_{0j}$ and $y_{1j}$ be the number of deaths in study $j$ and $p_{0j}$ and $p_{1j}$ denote the probabilities of death in control (**group=0**) and treatment group (**group=1**). We interest in the logarithm of the odds ratio, $\text{log(OR}_{j})=\log\left(\frac{p_{1j}/1-p_{1j}}{p_{0j}/1-p_{0j}}\right)$. One approach to estimate odds ratio and the corresponding sampling variance provided by Gelman et al (2004, p147, Eq.(5.23) and Eq.(5.24)). The estimated log-odds ratios and standard errors are listed in the table below.
+
+$$
+OR_{j}=\log\left(\frac{y_{1j}}{n_{1j}-y_{1j}}\right)-\log\left(\frac{y_{0j}}{n_{0j}-y_{0j}}\right)
+$$
+
+$$
+\sigma^2_j=\frac{1}{y_{1j}}+\frac{1}{n_{1j}-y_{1j}}+\frac{1}{y_{0j}}+\frac{1}{n_{0j}-y_{0j}}
+$$
+
+We regard the studies are exchangeable and assume the log(OR)’s are normally distributed. The model is 
+
+1. $\text{OR}_{j}|\theta_j\sim N(\theta_{j},\sigma_{j}^{2})$
+
+2. $\theta_j\sim N(\mu,v^{2})$
+
+3. $\mu\sim N(0,1e+12)$ and $v^{2} \sim U(0,10)$
+
+
 ```{r}
+beta_blockers<-read.table("BetaBlockers2.txt", header=T, sep="\t")
+
+beta_blockers$group<-factor(beta_blockers$group)
+
+beta_blockers$Study<-factor(beta_blockers$Study)
+
+library(dplyr)
+library(xtable)
+
+dat0 <- beta_blockers %>% filter(group==0)%>%
+  select(Study,deaths0=deaths,total0=total) %>%
+  mutate(survive0=total0-deaths0,odd0=deaths0/survive0)
+dat1 <- beta_blockers %>% filter(group==1)%>%
+  select(Study,deaths1=deaths,total1=total) %>%
+  mutate(survive1=total1-deaths1,odd1=deaths1/survive1)
+
+bb<- dat0%>%inner_join(dat1)%>%mutate(log_OR=log(odd1/odd0),
+                           SE=sqrt(1/deaths1+1/survive1+1/deaths0+1/survive0))
 
 
+kable(bb)
+
+# model
+b1.model = function(){
+  # data model 
+   for (j in 1:22) {
+     P[j] <- 1/sig2[j]  # precision of each treatment effect
+     Y[j] ~ dnorm(theta[j],P[j])
+     theta[j] ~ dnorm(mu,tau)} 
+  # 1/tau describe the variability in log odds ratios between studies
+  # prior 
+    mu ~ dnorm(0,1e-06) # the mean logOR of jth study
+    tau <- 1/v2        # the precision of jth study
+    v2 ~ dunif(0,10)     
+  # estimate
+    OR <- exp(mu) 
+}
+  
+bdata <- list(Y=as.numeric(bb$log_OR),sig2=(as.numeric(bb$SE))^2)
+bpar <- c("theta","v2","tau","OR")
+binits<-function(){list("mu"=c(0),"v2"=runif(1))}
+
+set.seed(100)
+
+jagsfit2<-jags(data=bdata, inits=binits, parameters.to.save=bpar, 
+     n.iter=10000,model.file=b1.model)
+
+jagsfit.mcmc2=as.mcmc(jagsfit2)
+
+coda=jagsfit2$BUGSoutput$sims.matrix
+
+(stats=summary(jagsfit.mcmc2))
+
+# 95\% credible interval for each study
+
+plot(1:22,seq(-0.8,0.6,length.out = 22),type="n", xlab="Studies",ylab="OR",bty="n",axes=F)
+axis(side = 1, tck=-0.015, line=-0.4,at = c(seq(from=1,to=22,by=1)))
+axis(side = 2, tck=-0.015, line=-0.4,at = c(seq(from=-0.8,to=0.6,by=0.2)))
+
+  for(i in 1:22){ 
+    points(i,stats$stat[i+5,1],pch=19)
+    points(i,Y[i],pch=1)
+    lines(c(i,i),c(stats$quan[i+5,1],stats$quan[i+5,5]),lwd=1)
+  }
+
+abline(0,0,lwd=0.2)
+legend(1.1,0.6,c("Posterior mean","MLE"),pch=c(19,1),bty="n")
+
+# another way to model 
+b2.model=function(){
+       for( i in 1:22) {
+        r0[i] ~ dbin(p0[i], n0[i])
+        r1[i] ~ dbin(p1[i], n1[i])
+        logit(p0[i]) <- mu[i]
+        logit(p1[i]) <- mu[i] + delta[i] + study[i]*beta
+        theta[i] <- logit(p1[i])-logit(p0[i])
+        mu[i] ~ dnorm(0,1e-6)
+        delta[i] ~ dnorm(d, prec)
+       }
+       OR <- exp(d)
+       d ~ dnorm(0.0,1.0E-6)
+      tau~dunif(0,10)
+      tau.sq<-tau*tau
+      prec<-1/(tau.sq)
+      beta ~ dnorm(0.0,1.0E-6) #additional prior for beta 
+    }
+
+r0<-bb$deaths0
+r1<-bb$deaths1
+n0<-bb$total0
+n1<-bb$total1
+study<-bb$Study
+
+bdata <- list(r0=r0,n0=n0,r1=r1,n1=n1,study=study)
+bpar <- c("d","tau","OR","theta")
+
+binits<-function(){list("d"=runif(1),"tau"=c(1))}
+
+jagsfit22<-jags(data=bdata, inits=binits, parameters.to.save=bpar, 
+     n.iter=10000,model.file=b2.model)
+
+jagsfit22
+
+stats=summary(as.mcmc(jagsfit22))
+
+# 95\% credible interval for each study
+
+plot(1:22,seq(-0.8,0.6,length.out = 22),type="n", xlab="Studies",ylab="log Odds Ratio",bty="n",axes=F)
+axis(side = 1, tck=-0.015, line=-0.4,at = c(seq(from=1,to=22,by=1)))
+axis(side = 2, tck=-0.015, line=-0.4,at = c(seq(from=-0.8,to=0.6,by=0.2)))
+
+  for(i in 1:22){ 
+    points(i,stats$stat[i+5,1],pch=19)
+    points(i,Y[i],pch=1)
+    lines(c(i,i),c(stats$quan[i+5,1],stats$quan[i+5,5]),lwd=1)
+  }
+
+ abline(stats$statis[2,1],0,lwd=0.2)
+legend(1.1,0.6,c("Posterior mean","MLE"),pch=c(19,1),bty="n")
 
 ```
 
 
-
-
-
-## Question 4: Meta-analysis
 
 
 ## Question 5: Trout data
@@ -188,13 +399,8 @@ For the West Coast trout data set (file wctrout_mis.txt), some of the covariates
 $$
 \text{logit}(p_i)=\beta_0+\beta_1S_i+\beta_2L_i+\beta_3S_iL_i
 $$
-where $S_i$ is the indicator for the sex of the fish (0=male,1=female) and $L_i$ is its standardised length. Also predict the missing sex for fish 1 and the missing length for fish 2. Note that the lengths have been standardised already and that there are 1961 fish in the file. \textbf{Hint} you will need to model both length and sex, something not normally required for predictors in a regression analysis.
 
-
-```{r,warning=FALSE,echo=FALSE,message=FALSE,eval=FALSE}
-library(R2jags)
-
-```
+where $S_i$ is the indicator for the sex of the fish (0=male,1=female) and $L_i$ is its standardised length. Also predict the missing sex for fish 1 and the missing length for fish 2. Note that the lengths have been standardised already and that there are 1961 fish in the file. **Hint** you will need to model both length and sex, something not normally required for predictors in a regression analysis.
 
 
 ```{r,eval=FALSE}
