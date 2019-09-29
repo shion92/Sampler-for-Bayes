@@ -443,5 +443,5 @@ The traceplot and the BGR diagnostic indicates that the MCMC converges (iteratio
 
 ## Question 6: Posterior model probabilities
 Link and Barker (2010) give an example where two models are considered for the following binomial data: $y=(8,16)'$ and $n=(20,30)'$. The two models are:
-
+ add changes 
 
